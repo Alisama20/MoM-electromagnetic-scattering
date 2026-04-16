@@ -426,8 +426,11 @@ def _mie_pec_coefficients(ka, n_max):
         xi = ka * (jn + 1j * yn)
         xi_p = (jn + 1j * yn) + ka * (jn_p + 1j * yn_p)
 
-        an[n] = psi / xi            # TM mode (E tangential = 0)
-        bn[n] = psi_p / xi_p        # TE mode (H tangential BC)
+        # Bohren-Huffman PEC limit (m -> inf):
+        #   a_n (TM, electric multipole) = psi'/xi'
+        #   b_n (TE, magnetic multipole) = psi/xi
+        an[n] = psi_p / xi_p
+        bn[n] = psi / xi
     return an, bn
 
 
