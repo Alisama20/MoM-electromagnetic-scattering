@@ -6,7 +6,7 @@ from scipy.linalg import solve_circulant
 
 
 # ======================================================
-# Parámetros globales
+# PARAMETERS
 # ======================================================
 
 lambda_val = 1.0
@@ -15,7 +15,7 @@ a = 2.0 * lambda_val
 eta = np.sqrt(mu_0 / epsilon_0)
 
 rho = 1000 * a
-num_modos = 40
+num_modes = 40
 
 phi_obs = np.linspace(0, 2*pi, 360)
 
@@ -38,13 +38,12 @@ def solve_mfie(N):
     nx = np.cos(phi)
     ny = np.sin(phi)
 
-
     dx = x[0] - x
     dy = y[0] - y
 
     dist = np.sqrt(dx**2 + dy**2)
 
-    #INGNORA NANs Y DIVISIONES POR CERO (AUTOTERMINO)
+    # Ignore NaN and division by zero (self-term)
     with np.errstate(divide='ignore', invalid='ignore'):
 
         rx = dx/dist
@@ -56,12 +55,10 @@ def solve_mfie(N):
 
         row = -dot_n_R*kernel*dl
 
-
-    #AUTIERMINO
+    # Self-term
     row[0] = 0.5
 
-
-    #EXCITACION
+    # Excitation
     b = (1/eta)*np.cos(phi)*np.exp(1j*k*x)
 
     J = solve_circulant(row, b)
@@ -70,7 +67,7 @@ def solve_mfie(N):
 
 
 # ======================================================
-# CAMPO LEJANO NUMERICO
+# NUMERICAL FAR FIELD
 # ======================================================
 
 def far_field_numeric(phi, J, N):
@@ -82,7 +79,6 @@ def far_field_numeric(phi, J, N):
     C = -omega*mu_0*np.sqrt(1j/(8*pi*k))
 
     Es = np.zeros_like(phi_obs, dtype=complex)
-
 
     for i, phi_o in enumerate(phi_obs):
 
@@ -100,32 +96,28 @@ def far_field_numeric(phi, J, N):
 
 
 # ======================================================
-# CAMPO LEJANO ANALITICO
+# ANALYTICAL FAR FIELD
 # ======================================================
 
 def far_field_exact():
 
-    n = np.arange(num_modos+1)
+    n = np.arange(num_modes+1)
 
     eps_n = np.ones_like(n)
     eps_n[1:] = 2
 
-
     C = -np.sqrt(2/pi)*np.exp(-1j*(k*rho-pi/4))/np.sqrt(k*rho)
 
     Es = np.zeros_like(phi_obs, dtype=complex)
-
 
     Jn = jv(n, k*a)
     Hn = hankel1(n, k*a)
 
     coef = eps_n*(-1)**n*(Jn/Hn)
 
-
     for i, phi_o in enumerate(phi_obs):
 
         Es[i] = C*np.sum(coef*np.cos(n*phi_o))
-
 
     return Es
 
@@ -144,7 +136,7 @@ def compute_rcs(Es):
 
 
 # ======================================================
-# ERROR L2
+# L2 ERROR
 # ======================================================
 
 def l2_error(num, exact):
@@ -152,27 +144,25 @@ def l2_error(num, exact):
     return np.linalg.norm(num-exact)
 
 
-
 # ======================================================
-# CORRIENTE EXACTA
+# EXACT CURRENT
 # ======================================================
 
 def exact_current(phi):
 
-    n = np.arange(num_modos+1)
+    n = np.arange(num_modes+1)
 
     eps_n = np.ones_like(n)
     eps_n[1:] = 2
 
     factor = eps_n*(1j)**n
 
-    Hn = hankel2(n, k*a)[:,None]
+    Hn = hankel2(n, k*a)[:, None]
 
     cos_n = np.cos(np.outer(n, phi))
 
-
     J = np.sum(
-        (factor[:,None]*cos_n)/Hn,
+        (factor[:, None]*cos_n)/Hn,
         axis=0
     )
 
@@ -182,30 +172,25 @@ def exact_current(phi):
 
 
 # ======================================================
-# PROGRAMA PRINCIPAL
+# MAIN PROGRAM
 # ======================================================
 
 def main():
 
     N_values = [10, 20, 30, 40, 50, 100, 1000]
 
-
     # ===============================
-    # FIGURA 1: CORRIENTE
+    # FIGURE 1: SURFACE CURRENT
     # ===============================
 
-    plt.figure(figsize=(10,7))
+    plt.figure(figsize=(10, 7))
 
-
-    phi_ref = np.linspace(0,2*pi,2000,endpoint=False)
+    phi_ref = np.linspace(0, 2*pi, 2000, endpoint=False)
     J_exact_ref = exact_current(phi_ref)
-
-
-
 
     for N in N_values:
 
-        print(f"Corriente MFIE: N = {N}")
+        print(f"MFIE current: N = {N}")
 
         phi, J = solve_mfie(N)
 
@@ -213,13 +198,12 @@ def main():
 
         err = l2_error(J, J_ex)
 
-
         plt.plot(
             np.degrees(phi),
             np.abs(J)*1000,
             'o-',
             markersize=4,
-            label=f"N={N} | Error L2={err:.2e}"
+            label=f"N={N} | $L^2$ error = {err:.2e}"
         )
 
     plt.plot(
@@ -227,25 +211,21 @@ def main():
         np.abs(J_exact_ref)*1000,
         'k--',
         linewidth=3,
-        label="Exacta (40 modos)"
+        label="Exact (40 modes)"
     )
 
-
-    plt.xlabel(r"Ángulo azimutal $\phi$ (grados)")
-    plt.ylabel(r"$|J_z|$ (mA/m)^2")
-
-    plt.title(r" MFIE: $|\boldsymbol{J}_z (\phi)|$ de un cilindro inifito de radio 2$\lambda$ mediante FD-MoM ($point$ $matching$ + pulsos)")
-
+    plt.xlabel(r"Azimuthal angle $\phi$ (degrees)")
+    plt.ylabel(r"$|J_z|$ (mA/m)")
+    plt.title(r"MFIE: $|\boldsymbol{J}_z(\phi)|$ for an infinite cylinder of radius $2\lambda$ via FD-MoM (point matching + pulses)")
     plt.grid(True)
     plt.legend(fontsize=9)
-
     plt.tight_layout()
+    plt.savefig("figures/CorrientesMFIE.png", dpi=150)
     plt.show()
 
 
-
     # ===============================
-    # FIGURA 2: RCS
+    # FIGURE 2: RCS
     # ===============================
 
     Es_exact = far_field_exact()
@@ -253,15 +233,11 @@ def main():
 
     phi_deg = np.degrees(phi_obs)
 
-
-    plt.figure(figsize=(10,7))
-
-
-
+    plt.figure(figsize=(10, 7))
 
     for N in N_values:
 
-        print(f"RCS MFIE: N = {N}")
+        print(f"MFIE RCS: N = {N}")
 
         phi, J = solve_mfie(N)
 
@@ -271,39 +247,33 @@ def main():
 
         err = l2_error(sigma_num_dB, sigma_exact_dB)
 
-
         plt.plot(
             phi_deg,
             sigma_num_dB,
             linewidth=2,
-            label=f"N={N} | Error L2={err:.2e}"
+            label=f"N={N} | $L^2$ error = {err:.2e}"
         )
-
 
     plt.plot(
         phi_deg,
         sigma_exact_dB,
         'k--',
         linewidth=3,
-        label="Exacta (40 modos)"
+        label="Exact (40 modes)"
     )
 
-
-    plt.xlabel(r"Ángulo de observación $\phi^s$ (grados)")
+    plt.xlabel(r"Observation angle $\phi^s$ (degrees)")
     plt.ylabel(r"$\sigma_{2D}$ (dBsm)")
-
-    plt.title(r" MFIE: RCS 2D de un cilindro inifito de radio 2$\lambda$ mediante FD-MoM ($point$ $matching$ + pulsos)")
-
+    plt.title(r"MFIE: 2D RCS of an infinite cylinder of radius $2\lambda$ via FD-MoM (point matching + pulses)")
     plt.grid(True)
     plt.legend(fontsize=9)
-
     plt.tight_layout()
+    plt.savefig("figures/RCS2DMFIE.png", dpi=150)
     plt.show()
 
 
-
 # ======================================================
-# Ejecutar
+# Run
 # ======================================================
 
 if __name__ == "__main__":

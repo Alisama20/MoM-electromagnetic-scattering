@@ -1,8 +1,8 @@
-# Method of Moments for 2D Electromagnetic Scattering
+# Method of Moments for Electromagnetic Scattering
 
-Numerical solution of the **EFIE** and **MFIE** for TM-polarised electromagnetic scattering by a perfectly conducting (PEC) circular cylinder, using the **Frequency-Domain Method of Moments (FD-MoM)**.
+Numerical solutions of the **EFIE** and **MFIE** for TM-polarised electromagnetic scattering by a perfectly conducting (PEC) circular cylinder, using the **Frequency-Domain Method of Moments (FD-MoM)**. Includes a 3D EFIE solver with **RWG basis functions** validated against the Mie series.
 
-> **Course project** — *Complementos Matemáticos y Numéricos*, Master's in Physics (Radiation, Nanotechnology, Particles & Astrophysics), University of Granada.
+> **Course project** — *Mathematical and Numerical Complements*, Master's in Physics (Radiation, Nanotechnology, Particles & Astrophysics), University of Granada.
 
 ---
 
@@ -28,31 +28,27 @@ where $G(\boldsymbol{\rho},\boldsymbol{\rho}') = -\frac{j}{4} H_0^{(2)}(k|\bolds
 
 ## Methods
 
-### EFIE with pulse basis and point matching — `EFIEpuldosmatchingTM.py`
+### 2D EFIE — pulse basis, point matching — `EFIE_pulse.py`
 
 The boundary is discretised into $N$ segments with **pulse basis functions** and tested at segment centres (*point matching*). The circulant structure of the impedance matrix is exploited via `scipy.linalg.solve_circulant` for $O(N \log N)$ solution.
 
-### EFIE with triangular basis (Galerkin) — `EFIEtriangulosftestTM.py`
+### 2D EFIE — triangular basis, Galerkin — `EFIE_galerkin.py`
 
-Uses **triangular (rooftop) basis** and **testing functions** with Gauss quadrature for a more accurate Galerkin formulation.
+Uses **triangular (rooftop) basis functions** and **Galerkin testing** with Gauss quadrature for a more accurate formulation.
 
-### MFIE with pulse basis and point matching — `MFIE-CILINDRO2DINF-PONITMATCHyPULSOS-TM.py`
+### 2D MFIE — pulse basis, point matching — `MFIE_pulse.py`
 
-Same discretisation as the EFIE pulse code but applied to the MFIE. Convergence comparisons reveal the MFIE's higher sensitivity to mesh density.
+Same discretisation as `EFIE_pulse.py` applied to the MFIE. Convergence comparisons reveal the MFIE's higher sensitivity to mesh density.
 
-### Thin-wire antenna (Pocklington) — `ThinWire.py`
+### 3D EFIE — RWG basis, PEC sphere — `EFIE_3D_RWG.py`
 
-Solves the **Pocklington integral equation** for the current distribution on a thin-wire dipole antenna using MoM with pulse basis functions.
-
-### 3D EFIE with RWG basis (experimental) — `IntentoMoM3D.py`
-
-Prototype implementation of a 3D MoM solver using **RWG (Rao–Wilton–Glisson)** basis functions on a triangular mesh, with singularity extraction and Duffy transforms. Accelerated with Numba.
+Full 3D MoM solver for a PEC sphere using **RWG (Rao–Wilton–Glisson)** basis functions on a triangular mesh generated with `trimesh`. Singularity extraction via Duffy transform. Monostatic RCS swept over frequency and validated against the **exact Mie series**. Accelerated with Numba.
 
 ---
 
 ## Results
 
-### Surface currents
+### 2D surface currents
 
 <p align="center">
 <img src="figures/CorrientesEFIE.png" width="45%">
@@ -61,22 +57,31 @@ Prototype implementation of a 3D MoM solver using **RWG (Rao–Wilton–Glisson)
 
 Left: EFIE surface current vs analytical solution. Right: MFIE surface current vs analytical solution. The EFIE shows faster convergence with fewer segments.
 
-### Radar Cross Section (RCS)
+### 2D Radar Cross Section
 
 <p align="center">
 <img src="figures/RCS2DEFIE.png" width="45%">
 <img src="figures/RCS2DMFIE.png" width="45%">
 </p>
 
-2D bistatic RCS ($\sigma_{2D}/\lambda$) computed from EFIE (left) and MFIE (right), compared with the analytical Mie series.
+Bistatic 2D RCS ($\sigma_{2D}/\lambda$) from EFIE (left) and MFIE (right), compared with the analytical Mie series.
+
+### 3D PEC sphere — MoM vs Mie
+
+<p align="center">
+<img src="figures/RCS_3D_sphere.png" width="65%">
+</p>
+
+Monostatic RCS of a PEC sphere ($r = 0.5$ m) swept from 100 to 600 MHz. The 3D EFIE RWG solver (1920 RWG functions, icosphere mesh) agrees well with the exact Mie series across the full frequency range.
 
 ---
 
-## Report
+## Reports
 
 | File | Description |
 |------|-------------|
-| [MemoriaES.pdf](MemoriaES.pdf) | Spanish report — full derivation of EFIE/MFIE, MoM discretisation, results and convergence analysis |
+| [MemoryEN.pdf](MemoryEN.pdf) | English version — derivation of EFIE/MFIE, MoM discretisation, results and convergence analysis |
+| [MemoriaES.pdf](MemoriaES.pdf) | Spanish version (original) |
 
 The LaTeX sources are in the [`latex/`](latex/) folder.
 
@@ -86,21 +91,23 @@ The LaTeX sources are in the [`latex/`](latex/) folder.
 
 ```
 .
-├── EFIEpuldosmatchingTM.py              # EFIE — pulse basis, point matching
-├── EFIEtriangulosftestTM.py             # EFIE — triangular basis, Galerkin
-├── MFIE-CILINDRO2DINF-PONITMATCHyPULSOS-TM.py  # MFIE — pulse basis, point matching
-├── ThinWire.py                          # Pocklington thin-wire antenna
-├── IntentoMoM3D.py                      # 3D EFIE with RWG (experimental)
-├── MemoriaES.pdf                        # Academic report (Spanish)
+├── EFIE_pulse.py            # 2D EFIE — pulse basis, point matching
+├── EFIE_galerkin.py         # 2D EFIE — triangular basis, Galerkin
+├── MFIE_pulse.py            # 2D MFIE — pulse basis, point matching
+├── EFIE_3D_RWG.py           # 3D EFIE — RWG basis, PEC sphere vs Mie
+├── MemoryEN.pdf             # Academic report (English)
+├── MemoriaES.pdf            # Academic report (Spanish, original)
 ├── latex/
-│   ├── main.tex                         # LaTeX source
-│   ├── bibliografia.bib                 # Bibliography
-│   └── escudoUGRmonocromo.png           # UGR logo
-├── figures/                             # Result figures
-│   ├── CorrientesEFIE.png
-│   ├── CorrientesMFIE.png
-│   ├── RCS2DEFIE.png
-│   └── RCS2DMFIE.png
+│   ├── main_EN.tex          # LaTeX source (English)
+│   ├── main_ES.tex          # LaTeX source (Spanish)
+│   ├── bibliografia.bib     # Bibliography
+│   └── escudoUGRmonocromo.png
+├── figures/
+│   ├── CorrientesEFIE.png   # 2D EFIE surface current
+│   ├── CorrientesMFIE.png   # 2D MFIE surface current
+│   ├── RCS2DEFIE.png        # 2D EFIE RCS
+│   ├── RCS2DMFIE.png        # 2D MFIE RCS
+│   └── RCS_3D_sphere.png    # 3D MoM vs Mie
 └── LICENSE
 ```
 
@@ -112,7 +119,7 @@ The LaTeX sources are in the [`latex/`](latex/) folder.
 numpy  scipy  matplotlib
 ```
 
-For the 3D solver (`IntentoMoM3D.py`):
+For the 3D solver (`EFIE_3D_RWG.py`):
 
 ```
 numpy  scipy  matplotlib  trimesh  numba
@@ -127,21 +134,28 @@ pip install numpy scipy matplotlib trimesh numba
 ## Usage
 
 ```bash
-# 2D EFIE (pulse basis) — prints current and RCS, shows plots
-python EFIEpuldosmatchingTM.py
+# 2D EFIE (pulse basis) — surface current + RCS vs analytical Mie
+python EFIE_pulse.py
 
-# 2D EFIE (triangular basis)
-python EFIEtriangulosftestTM.py
+# 2D EFIE (triangular Galerkin basis)
+python EFIE_galerkin.py
 
-# 2D MFIE
-python MFIE-CILINDRO2DINF-PONITMATCHyPULSOS-TM.py
+# 2D MFIE (pulse basis)
+python MFIE_pulse.py
 
-# Thin-wire dipole antenna
-python ThinWire.py
-
-# 3D EFIE with RWG (experimental)
-python IntentoMoM3D.py
+# 3D EFIE — PEC sphere RCS sweep vs Mie (requires trimesh + numba)
+python EFIE_3D_RWG.py
 ```
+
+Key parameters at the top of each file:
+
+| Parameter | Description |
+|-----------|-------------|
+| `lambda_val` | Wavelength (normalised to 1) |
+| `a` | Cylinder/sphere radius |
+| `N` | Number of boundary segments (2D) |
+| `radius` | Sphere radius in metres (3D) |
+| `f_start`, `f_stop`, `n_freqs` | Frequency sweep range (3D) |
 
 ---
 

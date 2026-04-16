@@ -5,9 +5,8 @@ from scipy.constants import epsilon_0, mu_0, c
 from scipy.linalg import solve_circulant
 
 
-
 # ======================================================
-# PARAMETROS
+# PARAMETERS
 # ======================================================
 
 lambda_val = 1.0
@@ -19,15 +18,15 @@ gamma = np.exp(np.euler_gamma)
 
 rho = 1000 * a
 
-num_modos = 40
+num_modes = 40
 
 phi_obs = np.linspace(0, 2*np.pi, 360)
 
-eps = 1e-20 #EVITAR LOG(0) EN RCS
+eps = 1e-20  # Avoid log(0) in RCS
 
 
 # ======================================================
-# CONSTRUCCION MOM
+# MoM ASSEMBLY
 # ======================================================
 
 def solve_mom(N):
@@ -39,7 +38,6 @@ def solve_mom(N):
     x = a * np.cos(phi)
     y = a * np.sin(phi)
 
-    
     dist = np.sqrt((x[0]-x)**2 + (y[0]-y)**2)
 
     row = dl * hankel2(0, k * dist)
@@ -48,18 +46,18 @@ def solve_mom(N):
         1 - 1j * (2/np.pi) * (np.log(k*gamma*dl/4) - 1)
     )
 
-    #ECITACION
+    # Excitation
     E_inc = np.exp(1j * k * x)
     b = (4/(k*eta)) * E_inc
 
-    #RESOLVER
+    # Solve
     J = solve_circulant(row, b)
 
     return phi, J
 
 
 # ======================================================
-# CAMPO LEJANO NUMERICO
+# NUMERICAL FAR FIELD
 # ======================================================
 
 def far_field_numeric(phi, J, N):
@@ -89,12 +87,12 @@ def far_field_numeric(phi, J, N):
 
 
 # ======================================================
-# CAMPO LEJANO ANALITICO
+# ANALYTICAL FAR FIELD
 # ======================================================
 
 def far_field_exact():
 
-    n = np.arange(0, num_modos+1)
+    n = np.arange(0, num_modes+1)
 
     epsilon_n = np.ones_like(n)
     epsilon_n[1:] = 2
@@ -122,7 +120,7 @@ def far_field_exact():
 
 
 # ======================================================
-# RCS 2D
+# 2D RCS
 # ======================================================
 
 def compute_rcs(Es):
@@ -135,7 +133,7 @@ def compute_rcs(Es):
 
 
 # ======================================================
-# Error L2
+# L2 error
 # ======================================================
 
 def l2_error(num, exact):
@@ -143,37 +141,33 @@ def l2_error(num, exact):
     return np.linalg.norm(num-exact)
 
 
-
-
-
-
 # ======================================================
-# Programa principal
+# Main program
 # ======================================================
 
 def main():
 
-    N_values = [10, 20, 30, 40, 50, 100,1000]
+    N_values = [10, 20, 30, 40, 50, 100, 1000]
 
     # ===============================
-    # CORRIENTE ANALITICA
+    # ANALYTICAL CURRENT
     # ===============================
 
     def exact_current(phi):
 
-        n = np.arange(0, num_modos+1)
+        n = np.arange(0, num_modes+1)
 
         epsilon_n = np.ones_like(n)
         epsilon_n[1:] = 2
 
         factor = epsilon_n * (1j)**n
 
-        Hn = hankel2(n, k*a).reshape(-1,1)
+        Hn = hankel2(n, k*a).reshape(-1, 1)
 
         cos_n = np.cos(np.outer(n, phi))
 
         J = np.sum(
-            (factor.reshape(-1,1) * cos_n)/Hn,
+            (factor.reshape(-1, 1) * cos_n)/Hn,
             axis=0
         )
 
@@ -183,21 +177,17 @@ def main():
 
 
     # ===============================
-    # FIGURA 1: CORRIENTE
+    # FIGURE 1: SURFACE CURRENT
     # ===============================
 
-    plt.figure(figsize=(10,7))
+    plt.figure(figsize=(10, 7))
 
-
-    # Solución exacta de referencia (alta resolución)
     phi_ref = np.linspace(0, 2*np.pi, 2000, endpoint=False)
     J_exact_ref = exact_current(phi_ref)
 
-
-
     for N in N_values:
 
-        print(f"Corriente: N = {N}")
+        print(f"Current: N = {N}")
 
         phi, J = solve_mom(N)
 
@@ -211,43 +201,37 @@ def main():
             'o-',
             linewidth=1.5,
             markersize=4,
-            label=f"N = {N} | Error $L^2$ ={error:.2e}"
+            label=f"N = {N} | $L^2$ error = {error:.2e}"
         )
 
-
-    # Curva exacta
     plt.plot(
         np.degrees(phi_ref),
         np.abs(J_exact_ref)*1000,
         'k--',
         linewidth=3,
-        label="Exacta (40 modos)"
+        label="Exact (40 modes)"
     )
 
-    plt.xlabel("Ángulo azimutal (grados)")
-    plt.ylabel("Densidad de corriente (mA/m)")
-
-    plt.title(r" EFIE: $|\boldsymbol{J}_z (\phi)|$ de un cilindro inifito de radio 2$\lambda$ mediante FD-MoM ($point$ $matching$ + pulsos)")
-
+    plt.xlabel("Azimuthal angle (degrees)")
+    plt.ylabel("Current density (mA/m)")
+    plt.title(r"EFIE: $|\boldsymbol{J}_z(\phi)|$ for an infinite cylinder of radius $2\lambda$ via FD-MoM (point matching + pulses)")
     plt.grid(True)
     plt.legend(fontsize=10)
-
     plt.tight_layout()
+    plt.savefig("figures/CorrientesEFIE.png", dpi=150)
     plt.show()
 
 
     # ===============================
-    # FIGURA 2: RCS
+    # FIGURE 2: RCS
     # ===============================
 
-    # Campo exacto
     Es_exact = far_field_exact()
     _, sigma_exact_dB = compute_rcs(Es_exact)
 
     phi_deg = np.degrees(phi_obs)
 
-    plt.figure(figsize=(10,7))
-
+    plt.figure(figsize=(10, 7))
 
     for N in N_values:
 
@@ -266,34 +250,29 @@ def main():
             phi_deg,
             sigma_num_dB,
             linewidth=2,
-            label=f"N = {N} | Error $L^2$ = {error:.2e}"
+            label=f"N = {N} | $L^2$ error = {error:.2e}"
         )
-
 
     plt.plot(
         phi_deg,
         sigma_exact_dB,
         'k--',
         linewidth=3,
-        label="Exacta (40 modos)"
+        label="Exact (40 modes)"
     )
-    
 
-    plt.xlabel("Ángulo de observación (grados)")
-    plt.ylabel("RCS 2D (dBsm)")
-
-    plt.title(r" EFIE: RCS 2D de un cilindro inifito de radio 2$\lambda$ mediante FD-MoM ($point$ $matching$ + pulsos)")
-
+    plt.xlabel("Observation angle (degrees)")
+    plt.ylabel("2D RCS (dBsm)")
+    plt.title(r"EFIE: 2D RCS of an infinite cylinder of radius $2\lambda$ via FD-MoM (point matching + pulses)")
     plt.grid(True)
     plt.legend(fontsize=10)
-
     plt.tight_layout()
+    plt.savefig("figures/RCS2DEFIE.png", dpi=150)
     plt.show()
 
 
-
 # ======================================================
-# Ejecutar
+# Run
 # ======================================================
 
 if __name__ == "__main__":
