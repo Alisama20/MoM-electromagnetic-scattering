@@ -46,3 +46,21 @@ ENV/
 .mypy_cache/
 .ruff_cache/
 .claude/
+
+# LaTeX build artefacts
+*.aux
+*.bbl
+*.blg
+*.out
+*.toc
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+latex/*.pdf
+latex/CorrientesEFIE.png
+latex/CorrientesMFIE.png
+latex/RCS2DEFIE.png
+latex/RCS2DMFIE.png
+latex/RCS_3D_sphere.png

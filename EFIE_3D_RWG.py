@@ -131,8 +131,10 @@ for m in range(num_rwg):
 # ============================================================
 
 @njit
-def duffy_integral_1_over_R(tri, r_obs):
-    """Integrate 1/|r_obs - r'| over triangle tri using Duffy (7x7)."""
+def duffy_integrals(tri, r_obs):
+    """Integrate [1, r'] / |r_obs - r'| over triangle tri using Duffy (7x7).
+    Returns out[0] = ∫ 1/R dS',  out[1:4] = ∫ r'/R dS'.
+    """
     v0 = tri[0]
     a = tri[1] - v0
     b = tri[2] - v0
@@ -150,8 +152,9 @@ def duffy_integral_1_over_R(tri, r_obs):
         0.06474248308443485
     ])
 
-    area2 = 0.5 * np.linalg.norm(np.cross(a, b))
-    val = 0.0
+    # |a x b| is twice the triangle area; Duffy Jacobian is |a x b| * u
+    cross_norm = np.linalg.norm(np.cross(a, b))
+    out = np.zeros(4)
 
     for i in range(7):
         u = u_nodes[i]
@@ -162,20 +165,25 @@ def duffy_integral_1_over_R(tri, r_obs):
 
             xi = u
             eta = u * v
-            r_p = v0 + xi * a + eta * b
+            rx = v0[0] + xi * a[0] + eta * b[0]
+            ry = v0[1] + xi * a[1] + eta * b[1]
+            rz = v0[2] + xi * a[2] + eta * b[2]
 
-            dx = r_obs[0] - r_p[0]
-            dy = r_obs[1] - r_p[1]
-            dz = r_obs[2] - r_p[2]
+            dx = r_obs[0] - rx
+            dy = r_obs[1] - ry
+            dz = r_obs[2] - rz
             R = np.sqrt(dx*dx + dy*dy + dz*dz)
 
             if R < 1e-14:
                 continue
 
-            jac = area2 * u
-            val += (1.0 / R) * jac * wu * wv
+            w = cross_norm * u * wu * wv / R
+            out[0] += w
+            out[1] += w * rx
+            out[2] += w * ry
+            out[3] += w * rz
 
-    return val
+    return out
 
 
 # ============================================================
@@ -197,7 +205,7 @@ def assemble_Z_EFIE(
 
     inv4pi = 1.0 / (4.0 * np.pi)
     factor_A = 1j * omega * mu
-    factor_Phi = -1.0 / (1j * omega * eps)
+    factor_Phi = 1.0 / (1j * omega * eps)
 
     # Precompute centroids
     centroids = np.zeros((num_faces, 3))
@@ -286,7 +294,8 @@ def assemble_Z_EFIE(
                             for d in range(3):
                                 fm[d] = sign_m * (r_obs[d] - rfree_m[d]) * (edge_len[m] / (2.0 * area_m))
 
-                            # Compute fn at centroid of source triangle for singular part
+                            # Approximate fn at centroid of source triangle for the
+                            # vector part; scalar part uses constant divergence.
                             fn_c = np.empty(3)
                             for d in range(3):
                                 fn_c[d] = sign_n * (centroids[ts, d] - rfree_n[d]) * (edge_len[n] / (2.0 * area_n))
@@ -298,7 +307,8 @@ def assemble_Z_EFIE(
                                 for d in range(3):
                                     tri_s[vi, d] = vertices[faces[ts, vi], d]
 
-                            I_sing = duffy_integral_1_over_R(tri_s, r_obs)
+                            I = duffy_integrals(tri_s, r_obs)
+                            I_sing = I[0]
 
                             Zmn += (
                                 factor_A * fm_dot_fn_c
