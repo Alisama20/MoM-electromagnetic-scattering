@@ -387,7 +387,7 @@ def assemble_b_EFIE(
 
 
 # ============================================================
-# 8. Mie series — exact PEC sphere monostatic RCS
+# 8. Mie series — exact PEC sphere RCS (monostatic + bistatic)
 # ============================================================
 
 def mie_pec_rcs_monostatic(k, a, n_max=60):
@@ -408,6 +408,66 @@ def mie_pec_rcs_monostatic(k, a, n_max=60):
 
     sigma = (4.0 * np.pi / k**2) * np.abs(S)**2
     return sigma
+
+
+def _mie_pec_coefficients(ka, n_max):
+    """Mie scattering coefficients a_n, b_n for a PEC sphere (Bohren-Huffman form)."""
+    an = np.zeros(n_max + 1, dtype=complex)
+    bn = np.zeros(n_max + 1, dtype=complex)
+    for n in range(1, n_max + 1):
+        jn = spherical_jn(n, ka)
+        yn = spherical_yn(n, ka)
+        jn_p = spherical_jn(n, ka, derivative=True)
+        yn_p = spherical_yn(n, ka, derivative=True)
+
+        # Riccati-Bessel: psi_n = rho j_n, xi_n = rho h_n^(1)
+        psi = ka * jn
+        psi_p = jn + ka * jn_p
+        xi = ka * (jn + 1j * yn)
+        xi_p = (jn + 1j * yn) + ka * (jn_p + 1j * yn_p)
+
+        an[n] = psi / xi            # TM mode (E tangential = 0)
+        bn[n] = psi_p / xi_p        # TE mode (H tangential BC)
+    return an, bn
+
+
+def mie_pec_rcs_bistatic(k, a, theta_arr, n_max=60):
+    """Bistatic RCS for PEC sphere, plane wave incident along +z, x-polarised.
+
+    Returns (sigma_E, sigma_H) in m^2, where sigma_E is E-plane (phi=0) and
+    sigma_H is H-plane (phi=pi/2). theta is measured from +z (forward = 0,
+    backscatter toward source = pi).
+    """
+    ka = k * a
+    an, bn = _mie_pec_coefficients(ka, n_max)
+
+    sigma_E = np.zeros_like(theta_arr)
+    sigma_H = np.zeros_like(theta_arr)
+
+    for i, theta in enumerate(theta_arr):
+        mu = np.cos(theta)
+
+        # Angular-function recursion (Bohren-Huffman)
+        pi_nm1 = 0.0
+        pi_n = 1.0
+
+        S1 = 0.0 + 0.0j  # perpendicular (H-plane) scattering amplitude
+        S2 = 0.0 + 0.0j  # parallel (E-plane) scattering amplitude
+
+        for n in range(1, n_max + 1):
+            tau_n = n * mu * pi_n - (n + 1) * pi_nm1
+            coef = (2 * n + 1) / (n * (n + 1))
+            S1 += coef * (an[n] * pi_n + bn[n] * tau_n)
+            S2 += coef * (an[n] * tau_n + bn[n] * pi_n)
+
+            pi_np1 = ((2 * n + 1) / n) * mu * pi_n - ((n + 1) / n) * pi_nm1
+            pi_nm1 = pi_n
+            pi_n = pi_np1
+
+        sigma_H[i] = (4.0 * np.pi / k**2) * np.abs(S1)**2  # phi = pi/2
+        sigma_E[i] = (4.0 * np.pi / k**2) * np.abs(S2)**2  # phi = 0
+
+    return sigma_E, sigma_H
 
 
 def compute_rcs_mom_monostatic(
@@ -447,92 +507,112 @@ def compute_rcs_mom_monostatic(
 
 
 # ============================================================
-# 9. Run: frequency sweep — MoM vs Mie
+# 9. Run: bistatic RCS pattern at ka ~ 1 — MoM vs Mie
 # ============================================================
 
 if __name__ == "__main__":
 
-    f_start = 100e6
-    f_stop = 600e6
-    n_freqs = 6
-
-    frequencies = np.linspace(f_start, f_stop, n_freqs)
-
-    rcs_mom_list = []
-    rcs_mie_list = []
+    # Incident plane wave: propagating along +z, polarised along +x
+    f_plot = 100e6
+    omega_f = 2.0 * np.pi * f_plot
+    k_f = omega_f / c
+    ka = k_f * radius
 
     E0 = 1.0 + 0.0j
-    k_dir = np.array([0.0, 0.0, -1.0])
+    k_dir = np.array([0.0, 0.0, 1.0])
     pol = np.array([1.0, 0.0, 0.0])
 
-    print("\nStarting frequency sweep...\n")
+    print(f"\nBistatic RCS pattern at f = {f_plot/1e6:.0f} MHz  (ka = {ka:.2f})")
 
-    for f in frequencies:
-        omega_f = 2.0 * np.pi * f
-        k_f = omega_f / c
-        ka = k_f * radius
+    Z = assemble_Z_EFIE(
+        quad_pts, quad_w,
+        tri_rwg, tri_sign, rwg_tris,
+        vertices, faces, face_areas,
+        rp, rm, edge_len, A_plus, A_minus,
+        k_f, omega_f, mu_0, epsilon_0
+    )
+    print(f"  Condition number: {np.linalg.cond(Z):.2e}")
 
-        print(f"f = {f/1e6:.0f} MHz  (ka = {ka:.2f})")
+    b = assemble_b_EFIE(
+        quad_pts, quad_w,
+        tri_rwg, tri_sign,
+        rp, rm, edge_len, A_plus, A_minus,
+        k_f, k_dir, pol, E0
+    )
+    coeffs = np.linalg.solve(Z, b)
 
-        Z = assemble_Z_EFIE(
-            quad_pts, quad_w,
-            tri_rwg, tri_sign, rwg_tris,
-            vertices, faces, face_areas,
-            rp, rm, edge_len, A_plus, A_minus,
-            k_f, omega_f, mu_0, epsilon_0
-        )
+    # --- Angular sweep, E-plane (phi = 0, scattered E_theta) ---
+    theta_arr = np.linspace(0.0, np.pi, 181)
+    sigma_mom_E = np.zeros_like(theta_arr)
+    sigma_mom_H = np.zeros_like(theta_arr)
 
-        cond = np.linalg.cond(Z)
-        print(f"  Condition number: {cond:.2e}")
+    for i, theta in enumerate(theta_arr):
+        ct, st = np.cos(theta), np.sin(theta)
 
-        b = assemble_b_EFIE(
-            quad_pts, quad_w,
-            tri_rwg, tri_sign,
-            rp, rm, edge_len, A_plus, A_minus,
-            k_f, k_dir, pol, E0
-        )
-
-        try:
-            coeffs = np.linalg.solve(Z, b)
-        except np.linalg.LinAlgError:
-            print("  -> Z singular, skipping frequency")
-            rcs_mom_list.append(np.nan)
-            rcs_mie_list.append(np.nan)
-            continue
-
-        obs_dir = -k_dir
-        rcs_mom_f = compute_rcs_mom_monostatic(
+        # E-plane (phi = 0): obs on x-z plane, scattered polarisation = theta_hat
+        obs_E = np.array([st, 0.0, ct])
+        pol_E = np.array([ct, 0.0, -st])
+        sigma_mom_E[i] = compute_rcs_mom_monostatic(
             coeffs, quad_pts, quad_w,
             tri_rwg, tri_sign,
             rp, rm, edge_len, A_plus, A_minus,
-            k_f, obs_dir, pol, E0
+            k_f, obs_E, pol_E, E0
         )
 
-        rcs_mie_f = mie_pec_rcs_monostatic(k_f, radius, n_max=60)
+        # H-plane (phi = pi/2): obs on y-z plane, scattered polarisation = phi_hat = -x_hat
+        obs_H = np.array([0.0, st, ct])
+        pol_H = np.array([-1.0, 0.0, 0.0])
+        sigma_mom_H[i] = compute_rcs_mom_monostatic(
+            coeffs, quad_pts, quad_w,
+            tri_rwg, tri_sign,
+            rp, rm, edge_len, A_plus, A_minus,
+            k_f, obs_H, pol_H, E0
+        )
 
-        rcs_mom_list.append(rcs_mom_f)
-        rcs_mie_list.append(rcs_mie_f)
+    # --- Exact Mie bistatic ---
+    sigma_mie_E, sigma_mie_H = mie_pec_rcs_bistatic(k_f, radius, theta_arr, n_max=60)
 
-        rcs_mom_dB = 10.0 * np.log10(rcs_mom_f) if rcs_mom_f > 0 else -100
-        rcs_mie_dB = 10.0 * np.log10(rcs_mie_f) if rcs_mie_f > 0 else -100
+    # Normalise by pi a^2 (standard Mie plot)
+    norm = np.pi * radius**2
+    theta_deg = np.degrees(theta_arr)
 
-        print(f"  RCS MoM  = {rcs_mom_dB:.2f} dBsm")
-        print(f"  RCS Mie  = {rcs_mie_dB:.2f} dBsm")
-        print(f"  Error    = {rcs_mom_dB - rcs_mie_dB:.2f} dB\n")
+    # --- Plot ---
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5), sharey=True)
 
-    # Convert to dBsm for plotting
-    rcs_mom_dB = [10*np.log10(x) if x > 0 else np.nan for x in rcs_mom_list]
-    rcs_mie_dB = [10*np.log10(x) if x > 0 else np.nan for x in rcs_mie_list]
+    axes[0].plot(theta_deg, 10*np.log10(sigma_mom_E / norm), 'o', ms=3,
+                 label='MoM EFIE (RWG)', color='C0')
+    axes[0].plot(theta_deg, 10*np.log10(sigma_mie_E / norm), '-',
+                 label='Mie (exact)', color='C3', lw=1.5)
+    axes[0].set_title(r'E-plane ($\phi=0$)')
+    axes[0].set_xlabel(r'Scattering angle $\theta$ (deg)')
+    axes[0].set_ylabel(r'$\sigma / \pi a^2$ (dB)')
+    axes[0].set_xlim(0, 180)
+    axes[0].grid(True, alpha=0.4)
+    axes[0].legend()
 
-    plt.figure(figsize=(9, 5))
-    plt.plot(frequencies/1e6, rcs_mom_dB, 'o-', label='MoM EFIE (RWG)')
-    plt.plot(frequencies/1e6, rcs_mie_dB, 's--', label='Mie (exact)')
-    plt.xlabel('Frequency (MHz)')
-    plt.ylabel('Monostatic RCS (dBsm)')
-    plt.title(f'PEC sphere RCS (r = {radius} m): MoM vs Mie')
-    plt.grid(True)
-    plt.legend()
-    plt.tight_layout()
+    axes[1].plot(theta_deg, 10*np.log10(sigma_mom_H / norm), 'o', ms=3,
+                 label='MoM EFIE (RWG)', color='C0')
+    axes[1].plot(theta_deg, 10*np.log10(sigma_mie_H / norm), '-',
+                 label='Mie (exact)', color='C3', lw=1.5)
+    axes[1].set_title(r'H-plane ($\phi=\pi/2$)')
+    axes[1].set_xlabel(r'Scattering angle $\theta$ (deg)')
+    axes[1].set_xlim(0, 180)
+    axes[1].grid(True, alpha=0.4)
+    axes[1].legend()
+
+    fig.suptitle(
+        f'PEC sphere bistatic RCS — MoM vs Mie (ka = {ka:.2f}, {num_rwg} RWG)'
+    )
+    fig.tight_layout()
     plt.savefig("figures/RCS_3D_sphere.png", dpi=150)
     print("Figure saved to figures/RCS_3D_sphere.png")
+
+    # Quick agreement metric at backscatter
+    i_back = np.argmin(np.abs(theta_arr - np.pi))
+    mom_bs = 10*np.log10(sigma_mom_E[i_back])
+    mie_bs = 10*np.log10(sigma_mie_E[i_back])
+    print(f"\nBackscatter (theta = 180 deg):")
+    print(f"  MoM = {mom_bs:.2f} dBsm,  Mie = {mie_bs:.2f} dBsm,"
+          f"  error = {mom_bs - mie_bs:+.2f} dB")
+
     plt.show()

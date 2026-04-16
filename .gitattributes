@@ -1,0 +1,9 @@
+# GitHub Linguist: exclude LaTeX report sources from language statistics.
+# The LaTeX code is documentation (not part of the core implementation).
+latex/**                 linguist-documentation
+*.tex                    linguist-documentation
+*.bib                    linguist-documentation
+*.bbl                    linguist-generated
+*.aux                    linguist-generated
+*.blg                    linguist-generated
+*.out                    linguist-generated

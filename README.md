@@ -42,7 +42,7 @@ Same discretisation as `EFIE_pulse.py` applied to the MFIE. Convergence comparis
 
 ### 3D EFIE — RWG basis, PEC sphere — `EFIE_3D_RWG.py`
 
-Full 3D MoM solver for a PEC sphere using **RWG (Rao–Wilton–Glisson)** basis functions on a triangular mesh generated with `trimesh`. Singularity extraction via Duffy transform. Monostatic RCS swept over frequency and validated against the **exact Mie series**. Accelerated with Numba.
+Full 3D MoM solver for a PEC sphere using **RWG (Rao–Wilton–Glisson)** basis functions on a triangular mesh generated with `trimesh`. Singularity extraction via Duffy transform. Bistatic RCS pattern validated against the **exact Mie series** (both E- and H-planes). Accelerated with Numba.
 
 ---
 
@@ -69,10 +69,10 @@ Bistatic 2D RCS ($\sigma_{2D}/\lambda$) from EFIE (left) and MFIE (right), compa
 ### 3D PEC sphere — MoM vs Mie
 
 <p align="center">
-<img src="figures/RCS_3D_sphere.png" width="65%">
+<img src="figures/RCS_3D_sphere.png" width="85%">
 </p>
 
-Monostatic RCS of a PEC sphere ($r = 0.5$ m) swept from 100 to 600 MHz. The 3D EFIE RWG solver (1920 RWG functions, icosphere mesh) agrees well with the exact Mie series across the full frequency range.
+Bistatic RCS of a PEC sphere ($r = 0.5$ m) at $ka \approx 1.05$ (100 MHz), E- and H-planes. The 3D EFIE RWG solver (1920 RWG functions, icosphere mesh) matches the exact Mie series to within **~0.1 dB** across all scattering angles.
 
 ---
 
@@ -143,7 +143,7 @@ python EFIE_galerkin.py
 # 2D MFIE (pulse basis)
 python MFIE_pulse.py
 
-# 3D EFIE — PEC sphere RCS sweep vs Mie (requires trimesh + numba)
+# 3D EFIE — PEC sphere bistatic RCS vs Mie (requires trimesh + numba)
 python EFIE_3D_RWG.py
 ```
 
@@ -155,7 +155,7 @@ Key parameters at the top of each file:
 | `a` | Cylinder/sphere radius |
 | `N` | Number of boundary segments (2D) |
 | `radius` | Sphere radius in metres (3D) |
-| `f_start`, `f_stop`, `n_freqs` | Frequency sweep range (3D) |
+| `f_plot` | Single frequency for the bistatic pattern (3D) |
 
 ---
 
