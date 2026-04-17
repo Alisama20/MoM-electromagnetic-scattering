@@ -91,10 +91,11 @@ The LaTeX sources are in the [`latex/`](latex/) folder.
 
 ```
 .
-├── EFIE_pulse.py            # 2D EFIE — pulse basis, point matching
-├── EFIE_galerkin.py         # 2D EFIE — triangular basis, Galerkin
-├── MFIE_pulse.py            # 2D MFIE — pulse basis, point matching
-├── EFIE_3D_RWG.py           # 3D EFIE — RWG basis, PEC sphere vs Mie
+├── scripts/
+│   ├── EFIE_pulse.py        # 2D EFIE — pulse basis, point matching
+│   ├── EFIE_galerkin.py     # 2D EFIE — triangular basis, Galerkin
+│   ├── MFIE_pulse.py        # 2D MFIE — pulse basis, point matching
+│   └── EFIE_3D_RWG.py       # 3D EFIE — RWG basis, PEC sphere vs Mie
 ├── MemoryEN.pdf             # Academic report (English)
 ├── MemoriaES.pdf            # Academic report (Spanish, original)
 ├── latex/
@@ -133,18 +134,21 @@ pip install numpy scipy matplotlib trimesh numba
 
 ## Usage
 
+Run the scripts from the repository root so that the `figures/` output
+paths resolve correctly:
+
 ```bash
 # 2D EFIE (pulse basis) — surface current + RCS vs analytical Mie
-python EFIE_pulse.py
+python scripts/EFIE_pulse.py
 
 # 2D EFIE (triangular Galerkin basis)
-python EFIE_galerkin.py
+python scripts/EFIE_galerkin.py
 
 # 2D MFIE (pulse basis)
-python MFIE_pulse.py
+python scripts/MFIE_pulse.py
 
 # 3D EFIE — PEC sphere bistatic RCS vs Mie (requires trimesh + numba)
-python EFIE_3D_RWG.py
+python scripts/EFIE_3D_RWG.py
 ```
 
 Key parameters at the top of each file:
