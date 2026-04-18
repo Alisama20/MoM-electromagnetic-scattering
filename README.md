@@ -165,8 +165,8 @@ Key parameters at the top of each file:
 
 ## Author
 
-**A. S. Amari**
+**A. S. Amari Rabah**
 
 Developed as part of the coursework for *Mathematical and Numerical Complements* —
 Master's Degree in Physics: Radiation, Nanotechnology, Particles and Astrophysics,
-University of Granada.
+University of Granada, Spain.
